@@ -28,21 +28,27 @@ wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
 To run segment-anything demo for panoptic segmentation (our use case), run `python demo/demo.py  --img demo/desk.jpg`. For more examples see `segment-anything/notebooks/automatic_mask_generator_example.ipynb`.
 
 
-## Download Scannet
+## Download and Process Scannet
 
 Run the following to download:
 
 ```
-python download-scannet.py -o /mnt/sda/akannan2/scannet --id scene0000_00 --type .sens
-python download-scannet.py -o /mnt/sda/akannan2/scannet --id scene0000_00 --type _2d-instance-filt.zip
-python download-scannet.py -o /mnt/sda/akannan2/scannet --id scene0000_00 --type _2d-label-filt.zip
+python download-scannet.py -o /scannet/root/folder --type .sens
+python download-scannet.py -o /scannet/root/folder --type _2d-instance-filt.zip
+# python download-scannet.py -o /scannet/root/folder --type _2d-label-filt.zip
+python download-scannet.py -o /scannet/root/folder --type .aggregation.json
 ```
 
 Run the following to extract data locally
 ```
-# unzip instance and label files
-sh unzip-scannet.sh /mnt/sda/akannan2/scannet/scans
-
-# Read .sens files
-python ScanNet/SensReader/python/reader.py --filename /mnt/sda/akannan2/scannet/scans/scene0000_00/scene0000_00.sens --output_path /mnt/sda/akannan2/scannet/scans/scene0000_00/ --export_color_images --export_pose --export_intrinsics --frame_skip 10
+# unzip instance files, extract images
+sh extract-scannet.sh /scannet/root/folder
 ```
+
+To save the relevant information in a pickle file, run the following:
+```
+python process-scannet.py --scannet_dir /scannet/root/folder --output_dir /output/dir
+```
+
+This will save a pickle with instance/class labels, camera intrinsics/extrinsics, and segmentations (label maps) of all 2D images. Note that instance labels for objects are 1-indexed; 
+there will be 0s in the label map that correspond to unannotated pixels.
