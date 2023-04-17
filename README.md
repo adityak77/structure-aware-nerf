@@ -30,7 +30,8 @@ To run segment-anything demo for panoptic segmentation (our use case), run `pyth
 
 ## Download and Process Scannet
 
-Run the following to download:
+Run the following commands to download. To download a single scene, add the `--id scene%04d_%02d` argument. The format is ` scene[spaceid]_[scanid]` where there are approximately 
+2-3 scans per space. For example, `scene0000_00`, `scene0000_01`, `scene0002_00` are valid scenes.
 
 ```
 python download-scannet.py -o /scannet/root/folder --type .sens
