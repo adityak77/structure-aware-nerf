@@ -34,7 +34,6 @@ Run the following commands to download. To download a single scene, add the `--i
 ```
 python download-scannet.py -o /scannet/root/folder --type .sens
 python download-scannet.py -o /scannet/root/folder --type _2d-instance-filt.zip
-# python download-scannet.py -o /scannet/root/folder --type _2d-label-filt.zip
 python download-scannet.py -o /scannet/root/folder --type .aggregation.json
 ```
 
@@ -42,6 +41,9 @@ Run the following to extract data locally
 ```
 # unzip instance files, extract images
 sh extract-scannet.sh /scannet/root/folder
+
+# extract object pose using Cube-RCNN model
+python demo/demo_scannet.py --config-file cubercnn://omni3d/cubercnn_DLA34_FPN.yaml --scannet-folder "/scannet/root/folder/scene[space_id]_[scan_id]/" MODEL.WEIGHTS cubercnn://omni3d/cubercnn_DLA34_FPN.pth OUTPUT_DIR output/test
 ```
 
 To save the relevant information in a pickle file, run the following:

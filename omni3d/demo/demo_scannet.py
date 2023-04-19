@@ -165,19 +165,20 @@ def do_test(args, cfg, model, intrinsics):
 
                 bbox_3d.append(bbox3D + pose.reshape(-1).tolist()) # X, Y, Z, L, W, H, 9D rotation matrix
         
-        # print('File: {} with {} dets'.format(im_name, len(meshes)))
+        if args.display:
+            print('File: {} with {} dets'.format(im_name, len(meshes)))
 
-        # if len(meshes) > 0:
-        #     im_drawn_rgb, im_topdown, _ = vis.draw_scene_view(im, K, meshes, text=meshes_text, scale=im.shape[0], blend_weight=0.5, blend_weight_overlay=0.85)
-            
-        #     if args.display:
-        #         im_concat = np.concatenate((im_drawn_rgb, im_topdown), axis=1)
-        #         vis.imshow(im_concat)
+            if len(meshes) > 0:
+                im_drawn_rgb, im_topdown, _ = vis.draw_scene_view(im, K, meshes, text=meshes_text, scale=im.shape[0], blend_weight=0.5, blend_weight_overlay=0.85)
+                
+                if args.display:
+                    im_concat = np.concatenate((im_drawn_rgb, im_topdown), axis=1)
+                    vis.imshow(im_concat)
 
-        #     util.imwrite(im_drawn_rgb, os.path.join(output_dir, im_name+'_boxes.jpg'))
-        #     util.imwrite(im_topdown, os.path.join(output_dir, im_name+'_novel.jpg'))
-        # else:
-        #     util.imwrite(im, os.path.join(output_dir, im_name+'_boxes.jpg'))
+                util.imwrite(im_drawn_rgb, os.path.join(output_dir, im_name+'_boxes.jpg'))
+                util.imwrite(im_topdown, os.path.join(output_dir, im_name+'_novel.jpg'))
+            else:
+                util.imwrite(im, os.path.join(output_dir, im_name+'_boxes.jpg'))
 
         # find correspondences between segmented objects and 3d bboxes here
         poses = {
