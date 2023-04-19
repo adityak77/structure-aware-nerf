@@ -32,6 +32,9 @@ def process_one(scan_dir_path, output_dir):
         cv2.imread(os.path.join(scan_dir_path, 'instance-filt', f'{i}.png'), cv2.IMREAD_GRAYSCALE) for i in frame_idxs
     ]
 
+    with open(os.path.join(scan_dir_path, 'object_poses.json'), 'r') as f:
+        object_poses = json.load(f)
+
     instance_data = []
     for instance in instance_info['segGroups']:
         instance_dict = {}
@@ -47,6 +50,7 @@ def process_one(scan_dir_path, output_dir):
 
     save_dict = {
         'instance_data': instance_data,
+        'object_poses': object_poses,
         'label_map': np.array(label_map),
         'camera_data': camera_data,
         'num_frames': num_frames,
