@@ -1,6 +1,8 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates
 import logging
 import os
+import glob
+import json
 import argparse
 import sys
 import cv2
@@ -26,10 +28,40 @@ from cubercnn.modeling.meta_arch import RCNN3D, build_model
 from cubercnn.modeling.backbone import build_dla_from_vision_fpn_backbone
 from cubercnn import util, vis
 
+def map_scannet_category_to_omni(cat, omni_cats):
+    if cat in omni_cats:
+        return cat
+    elif 'cabinet' in cat:
+        return 'cabinet'
+    elif 'door' in cat:
+        return 'door'
+    elif 'chair' in cat:
+        return 'chair'
+    elif cat == 'trash can':
+        return 'bin'
+    elif cat == 'shelf':
+        return 'shelves'
+    elif cat == 'bookshelf':
+        return 'bookcase'
+    elif cat == 'nightstand':
+        return 'night stand'
+    else:
+        return None
+
 def do_test(args, cfg, model, intrinsics):
 
-    list_of_ims = util.list_files(os.path.join(args.scannet_folder, 'color'), '*')
-    list_of_masks = [os.path.join(args.scannet_folder, 'instance-filt', os.path.basename(im_path).replace('.jpg', '.png')) for im_path in list_of_ims]
+    list_of_ims = util.list_files(os.path.join(args.scannet_folder, 'color', ''), '*')
+    list_of_masks = []
+    for im_path in list_of_ims:
+        im_name = int(util.file_parts(im_path)[1])
+        mask_path = os.path.join(args.scannet_folder, 'instance-filt', f'{im_name}.png')
+        list_of_masks.append(mask_path)
+    
+    json_path = glob.glob(f'{args.scannet_folder}/*.aggregation.json')[0]
+    with open(json_path, 'r') as f:
+        instance_info = json.load(f)
+
+    index_to_scannet_label = {elem['id'] + 1 : elem['label'] for elem in instance_info['segGroups']}
 
     model.eval()
     
@@ -50,13 +82,12 @@ def do_test(args, cfg, model, intrinsics):
 
     metadata = util.load_json(category_path)
     cats = metadata['thing_classes']
+    cats_to_ind = {cat: i for i, cat in enumerate(cats)}
     
     for path, mask_path in zip(list_of_ims, list_of_masks):
 
         im_name = util.file_parts(path)[1]
         im = util.imread(path)
-
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
         if im is None:
             continue
@@ -69,9 +100,40 @@ def do_test(args, cfg, model, intrinsics):
         _ = augmentations(aug_input)
         image = aug_input.image
 
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        instance_ids = np.unique(mask)
+        instance_ids = instance_ids[instance_ids > 0]  # 0 is the not annotated
+
+        instance_classes_scannet = [index_to_scannet_label[instance_id] for instance_id in instance_ids]
+        instance_classes_omni = [map_scannet_category_to_omni(cat, cats) for cat in instance_classes_scannet]
+
+        instance_ids_scannet = []
+        instance_ids_omni = []
+        for i, cat in enumerate(instance_classes_omni):
+            if cat is not None:
+                instance_ids_omni.append(cats_to_ind[cat])
+                instance_ids_scannet.append(instance_ids[i])
+
+        # this is a list of (left, top, right, bottom) tuples
+        instance_coords = [np.where(mask == instance_id) for instance_id in instance_ids_scannet]
+        instance_bbox = torch.tensor([
+            [min(val[1]), min(val[0]), max(val[1]), max(val[0])] for val in instance_coords
+        ])
+
+        scale_x, scale_y = image.shape[1] / im.shape[1], image.shape[0] / im.shape[0]
+        instance_bbox[:, [0, 2]] = (instance_bbox[:, [0, 2]] * scale_x).to(torch.int64)
+        instance_bbox[:, [1, 3]] = (instance_bbox[:, [1, 3]] * scale_y).to(torch.int64)
+
+        instance_bbox = instance_bbox.cuda()
+        oracle_dict = {
+            'gt_bbox2D': instance_bbox,
+            'gt_classes': torch.tensor(instance_ids_omni).to(torch.int64).cuda()
+        }
+
         batched = [{
             'image': torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1))).cuda(), 
-            'height': image_shape[0], 'width': image_shape[1], 'K': K
+            'height': image_shape[0], 'width': image_shape[1], 'K': K,
+            'oracle2D': oracle_dict
         }]
 
         dets = model(batched)[0]['instances']
@@ -86,11 +148,6 @@ def do_test(args, cfg, model, intrinsics):
                     dets.pred_bbox3D, dets.pred_center_cam, dets.pred_center_2D, dets.pred_dimensions, 
                     dets.pred_pose, dets.scores, dets.pred_classes
                 )):
-
-                # skip
-                if score < thres:
-                    continue
-                
                 cat = cats[cat_idx]
 
                 bbox3D = center_cam.tolist() + dimensions.tolist()
@@ -116,7 +173,9 @@ def do_test(args, cfg, model, intrinsics):
             util.imwrite(im, os.path.join(output_dir, im_name+'_boxes.jpg'))
 
         # find correspondences between segmented objects and 3d bboxes here
-
+        poses = {
+            instance_ids_scannet[idx]: bbox_3d[idx] for idx in range(len(instance_ids_scannet))
+        }
 
         # save as a json file
 
@@ -148,8 +207,12 @@ def main(args):
         cfg.MODEL.WEIGHTS, resume=True
     )
 
+    intrinsics_file = os.path.join(args.scannet_folder, 'intrinsic', 'intrinsic_color.txt')
+    intrinsics = np.loadtxt(intrinsics_file)
+    intrinsics = intrinsics[:3, :3]
+
     with torch.no_grad():
-        do_test(args, cfg, model)
+        do_test(args, cfg, model, intrinsics)
 
 if __name__ == "__main__":
     
