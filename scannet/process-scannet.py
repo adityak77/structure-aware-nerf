@@ -17,18 +17,19 @@ def process_one(scan_dir_path, output_dir):
         print(f"Skipping {scan_name} because it already exists")
         return
 
-    num_frames = len(os.listdir(os.path.join(scan_dir_path, 'color')))
+    frame_idxs = [os.path.splitext(os.path.split(f)[1])[0] for f in os.listdir(os.path.join(scan_dir_path, 'color'))]
+    num_frames = len(frame_idxs)
 
     with open(os.path.join(scan_dir_path, f'{scan_name}.aggregation.json'), 'r') as f:
         instance_info = json.load(f)
     
     intrinsics = load_mat_from_txt(os.path.join(scan_dir_path, 'intrinsic', 'intrinsic_color.txt'))
     extrinsics = [
-        load_mat_from_txt(os.path.join(scan_dir_path, 'pose', f'{i}.txt')) for i in range(num_frames)
+        load_mat_from_txt(os.path.join(scan_dir_path, 'pose', f'{i}.txt')) for i in frame_idxs
     ]
 
     label_map = [
-        cv2.imread(os.path.join(scan_dir_path, 'instance-filt', f'{i}.png'), cv2.IMREAD_GRAYSCALE) for i in range(num_frames)
+        cv2.imread(os.path.join(scan_dir_path, 'instance-filt', f'{i}.png'), cv2.IMREAD_GRAYSCALE) for i in frame_idxs
     ]
 
     instance_data = []
