@@ -4,7 +4,6 @@ import Button from '@mui/material/Button';
 import { useDispatch, useSelector } from 'react-redux';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import CelebrationOutlinedIcon from '@mui/icons-material/CelebrationOutlined';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import {
@@ -19,9 +18,7 @@ interface StatusPanelProps {
 export default function StatusPanel(props: StatusPanelProps) {
   const dispatch = useDispatch();
   const viser_websocket = React.useContext(ViserWebSocketContext);
-  const training_state = useSelector(
-    (state) => state.renderingState.training_state,
-  );
+  const isTraining = useSelector((state) => state.renderingState.isTraining);
   const sceneTree = props.sceneTree;
 
   const isWebsocketConnected = useSelector(
@@ -56,38 +53,23 @@ export default function StatusPanel(props: StatusPanelProps) {
   }, [camera_choice, is_scene_visible]);
 
   const handlePlayChange = () => {
-    let new_state = null;
-    if (training_state === 'training') {
-      new_state = 'paused';
-    } else if (training_state === 'paused') {
-      new_state = 'training';
-    } else {
-      return;
-    }
     dispatch({
       type: 'write',
-      path: 'renderingState/training_state',
-      data: new_state,
+      path: 'renderingState/isTraining',
+      data: !isTraining,
     });
     sendWebsocketMessage(viser_websocket, {
-      type: 'TrainingStateMessage',
-      training_state: new_state,
+      type: 'IsTrainingMessage',
+      is_training: !isTraining,
     });
   };
-  let is_training_text = '';
-  let training_icon = null;
-  let color = 'secondary';
-  if (training_state === 'training') {
-    is_training_text = 'Pause Training';
-    training_icon = <PauseIcon />;
-  } else if (training_state === 'paused') {
-    is_training_text = 'Resume Training';
-    training_icon = <PlayArrowIcon />;
-  } else {
-    is_training_text = 'Training Complete';
-    color = 'success';
-    training_icon = <CelebrationOutlinedIcon />;
-  }
+  const is_training_text = isTraining ? 'Pause Training' : 'Resume Training';
+  const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
+
+  const websocket_connected_text = isWebsocketConnected
+    ? 'Renderer Connected'
+    : 'Renderer Disconnected';
+  const websocket_connected_color = isWebsocketConnected ? 'success' : 'error';
 
   return (
     <div className="StatusPanel">
@@ -95,7 +77,7 @@ export default function StatusPanel(props: StatusPanelProps) {
         <Button
           className="StatusPanel-play-button"
           variant="contained"
-          color={color}
+          color="secondary"
           onClick={handlePlayChange}
           disabled={!isWebsocketConnected}
           startIcon={training_icon}
@@ -146,6 +128,13 @@ export default function StatusPanel(props: StatusPanelProps) {
           <b>Resolution:</b> {eval_res}
         </div>
       </div>
+      <Button
+        className="StatusPanel-button"
+        color={websocket_connected_color}
+        style={{ textTransform: 'none' }}
+      >
+        {websocket_connected_text}
+      </Button>
     </div>
   );
 }

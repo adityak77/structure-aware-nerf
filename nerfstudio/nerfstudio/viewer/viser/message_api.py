@@ -439,13 +439,13 @@ class MessageApi(abc.ABC):
         """
         self._queue(messages.DatasetImageMessage(idx=idx, json=json))
 
-    def set_training_state(self, training_state: Literal["training", "paused", "completed"]) -> None:
+    def set_is_training(self, is_training: bool) -> None:
         """Set the training mode.
 
         Args:
-            training_state: The training mode.
+            is_training: The training mode.
         """
-        self._queue(messages.TrainingStateMessage(training_state=training_state))
+        self._queue(messages.IsTrainingMessage(is_training=is_training))
 
     def send_camera_paths(self, camera_paths: Dict[str, Any]) -> None:
         """Send camera paths to the scene.
@@ -531,10 +531,6 @@ class MessageApi(abc.ABC):
             )
         )
         return GuiHandle(handle_state)
-
-    def use_time_conditioning(self) -> None:
-        """Use time conditioning."""
-        self._queue(messages.UseTimeConditioningMessage())
 
     def _handle_gui_updates(
         self: MessageApi,

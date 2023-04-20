@@ -15,7 +15,6 @@
 """
 Pose and Intrinsics Optimizers
 """
-
 from __future__ import annotations
 
 import functools

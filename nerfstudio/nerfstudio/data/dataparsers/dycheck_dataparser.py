@@ -202,7 +202,6 @@ class Dycheck(DataParser):
     """Dycheck (https://arxiv.org/abs/2210.13445) Dataset `iphone` subset"""
 
     config: DycheckDataParserConfig
-    includes_time: bool = True
 
     def __init__(self, config: DycheckDataParserConfig):
         super().__init__(config=config)

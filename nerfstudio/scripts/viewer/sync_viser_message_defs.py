@@ -1,14 +1,14 @@
 """Generate viser message definitions for TypeScript, by parsing Python dataclasses."""
+
 import pathlib
 import subprocess
 
-import tyro
 from viser.infra import generate_typescript_interfaces
 
 from nerfstudio.viewer.viser import NerfstudioMessage
 
 
-def main() -> None:
+def entrypoint() -> None:
     """Generate viser message definitions for TypeScript, by parsing Python dataclasses."""
 
     # Generate typescript source.
@@ -30,12 +30,6 @@ def main() -> None:
     # TODO: if this is not installed maybe we should print some error with installation
     # instructions?
     subprocess.run(args=["prettier", "-w", str(target_path)], check=False)
-
-
-def entrypoint() -> None:
-    """Entrypoint for use with pyproject scripts."""
-    # All entrypoints must currently be tyro CLIs.
-    tyro.cli(main)
 
 
 if __name__ == "__main__":

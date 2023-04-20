@@ -171,10 +171,10 @@ class DatasetImageMessage(NerfstudioMessage):
 
 
 @dataclasses.dataclass
-class TrainingStateMessage(NerfstudioMessage):
+class IsTrainingMessage(NerfstudioMessage):
     """Wheather the scene is in training mode or not."""
 
-    training_state: Literal["training", "paused", "completed"]
+    is_training: bool
     """True if the model is currently trianing, False otherwise"""
 
 
@@ -228,16 +228,3 @@ class StatusMessage(NerfstudioMessage):
 @dataclasses.dataclass
 class SaveCheckpointMessage(NerfstudioMessage):
     """Save checkpoint message."""
-
-
-@dataclasses.dataclass
-class UseTimeConditioningMessage(NerfstudioMessage):
-    """Use time conditioning message."""
-
-
-@dataclasses.dataclass
-class TimeConditionMessage(NerfstudioMessage):
-    """Time conditioning message."""
-
-    time: float
-    """ Time conditioning value """

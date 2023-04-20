@@ -110,7 +110,6 @@ class SpacedSampler(Sampler):
             bin_upper = torch.cat([bin_centers, bins[..., -1:]], -1)
             bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
             bins = bin_lower + (bin_upper - bin_lower) * t_rand
-
         s_near, s_far = (self.spacing_fn(x) for x in (ray_bundle.nears, ray_bundle.fars))
         spacing_to_euclidean_fn = lambda x: self.spacing_fn_inv(x * s_far + (1 - x) * s_near)
         euclidean_bins = spacing_to_euclidean_fn(bins)  # [num_rays, num_samples+1]
@@ -461,7 +460,6 @@ class VolumetricSampler(Sampler):
             camera_indices = ray_bundle.camera_indices.contiguous()
         else:
             camera_indices = None
-
         ray_indices, starts, ends = nerfacc.ray_marching(
             rays_o=rays_o,
             rays_d=rays_d,

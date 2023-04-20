@@ -76,6 +76,7 @@ class Nerfstudio(DataParser):
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
 
+
         assert self.config.data.exists(), f"Data directory {self.config.data} does not exist."
 
         if self.config.data.suffix == ".json":
@@ -87,6 +88,7 @@ class Nerfstudio(DataParser):
 
         image_filenames = []
         mask_filenames = []
+        pose_filenames = []
         depth_filenames = []
         poses = []
         num_skipped_image_filenames = 0
@@ -157,6 +159,10 @@ class Nerfstudio(DataParser):
                     downsample_folder_prefix="masks_",
                 )
                 mask_filenames.append(mask_fname)
+            
+            if "pose_path" in frame:
+                pose_filename = frame["pose_path"]
+                pose_filenames.append(pose_filename)
 
             if "depth_file_path" in frame:
                 depth_filepath = PurePath(frame["depth_file_path"])
@@ -304,6 +310,7 @@ class Nerfstudio(DataParser):
             cameras=cameras,
             scene_box=scene_box,
             mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
+            pose_filenames=pose_filenames if len(pose_filenames) > 0 else None,
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
             metadata={

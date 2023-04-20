@@ -17,14 +17,14 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, Generic, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, List, Optional, Tuple, TypeVar
 
-from nerfstudio.viewer.viser import GuiHandle, GuiSelectHandle, ViserServer
+from nerfstudio.viewer.viser import GuiHandle, ViserServer
 
-TValue = TypeVar("TValue")
+IntOrFloat = TypeVar("IntOrFloat", int, float)
 
 
-class ViewerElement(Generic[TValue]):
+class ViewerElement:
     """Base class for all viewer elements
 
     Args:
@@ -32,14 +32,9 @@ class ViewerElement(Generic[TValue]):
         disabled: If the element is disabled
     """
 
-    def __init__(
-        self,
-        name: str,
-        disabled: bool = False,
-        cb_hook: Callable = lambda element: None,
-    ) -> None:
+    def __init__(self, name: str, disabled: bool = False, cb_hook: Callable = lambda element: None):
         self.name = name
-        self.gui_handle: Optional[GuiHandle[TValue]] = None
+        self.gui_handle: Optional[GuiHandle] = None
         self.disabled = disabled
         self.cb_hook = cb_hook
 
@@ -53,20 +48,18 @@ class ViewerElement(Generic[TValue]):
         """
         ...
 
-    def remove(self) -> None:
+    def remove(self):
         """Removes the gui element from the viewer"""
         if self.gui_handle is not None:
             self.gui_handle.remove()
             self.gui_handle = None
 
-    def set_hidden(self, hidden: bool) -> None:
+    def set_hidden(self, hidden: bool):
         """Sets the hidden state of the gui element"""
-        assert self.gui_handle is not None
         self.gui_handle.set_hidden(hidden)
 
-    def set_disabled(self, disabled: bool) -> None:
+    def set_disabled(self, disabled: bool):
         """Sets the disabled state of the gui element"""
-        assert self.gui_handle is not None
         self.gui_handle.set_disabled(disabled)
 
     @abstractmethod
@@ -75,17 +68,17 @@ class ViewerElement(Generic[TValue]):
         ...
 
 
-class ViewerButton(ViewerElement[bool]):
+class ViewerButton(ViewerElement):
     """A button in the viewer
 
     Args:
         name: The name of the button
-        cb_hook: The function to call when the button is pressed
+        call_fn: The function to call when the button is pressed
         disabled: If the button is disabled
     """
 
-    def __init__(self, name: str, cb_hook: Callable[[ViewerButton], Any], disabled: bool = False):
-        super().__init__(name, disabled=disabled, cb_hook=cb_hook)
+    def __init__(self, name: str, call_fn: Callable, disabled: bool = False):
+        super().__init__(name, disabled=disabled, cb_hook=call_fn)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         self.gui_handle = viser_server.add_gui_button(self.name)
@@ -94,11 +87,14 @@ class ViewerButton(ViewerElement[bool]):
     def install(self, viser_server: ViserServer) -> None:
         self._create_gui_handle(viser_server)
 
+        def call_fn(_: GuiHandle):  # pylint: disable=unused-argument
+            self.cb_hook(self)
+
         assert self.gui_handle is not None
-        self.gui_handle.on_update(lambda _: self.cb_hook(self))
+        self.gui_handle.on_update(call_fn)
 
 
-class ViewerParameter(ViewerElement[TValue], Generic[TValue]):
+class ViewerParameter(ViewerElement):
     """A viewer element with state
 
     Args:
@@ -108,15 +104,9 @@ class ViewerParameter(ViewerElement[TValue], Generic[TValue]):
         cb_hook: Callback to call on update
     """
 
-    def __init__(
-        self,
-        name: str,
-        default_value: TValue,
-        disabled: bool = False,
-        cb_hook: Callable = lambda element: None,
-    ) -> None:
+    def __init__(self, name: str, default_value: Any, disabled: bool = False, cb_hook: Callable = lambda element: None):
         super().__init__(name, disabled=disabled, cb_hook=cb_hook)
-        self.default_value = default_value
+        self.def_value = default_value
 
     def install(self, viser_server: ViserServer) -> None:
         """
@@ -127,32 +117,32 @@ class ViewerParameter(ViewerElement[TValue], Generic[TValue]):
         """
         self._create_gui_handle(viser_server)
 
+        def update_fn(_: GuiHandle):
+            self.cb_hook(self)
+
         assert self.gui_handle is not None
-        self.gui_handle.on_update(lambda _: self.cb_hook(self))
+        self.gui_handle.on_update(update_fn)
 
     @abstractmethod
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         ...
 
     @property
-    def value(self) -> TValue:
+    def value(self) -> Any:
         """Returns the current value of the viewer element"""
         if self.gui_handle is None:
-            return self.default_value
+            return self.def_value
         return self.gui_handle.get_value()
 
     @value.setter
-    def value(self, value: TValue) -> None:
+    def value(self, value: Any):
         if self.gui_handle is not None:
             self.gui_handle.set_value(value)
         else:
-            self.default_value = value
+            self.def_value = value
 
 
-IntOrFloat = TypeVar("IntOrFloat", int, float)
-
-
-class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
+class ViewerSlider(ViewerParameter):
     """A slider in the viewer
 
     Args:
@@ -173,7 +163,7 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         max_value: IntOrFloat,
         step: IntOrFloat = 0.1,
         disabled: bool = False,
-        cb_hook: Callable[[ViewerSlider], Any] = lambda element: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert isinstance(default_value, (float, int))
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -183,11 +173,11 @@ class ViewerSlider(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_slider(self.name, self.min, self.max, self.step, self.default_value)
+        self.gui_handle = viser_server.add_gui_slider(self.name, self.min, self.max, self.step, self.def_value)
         self.gui_handle.set_disabled(self.disabled)
 
 
-class ViewerText(ViewerParameter[str]):
+class ViewerText(ViewerParameter):
     """A text field in the viewer
 
     Args:
@@ -202,18 +192,18 @@ class ViewerText(ViewerParameter[str]):
         name: str,
         default_value: str,
         disabled: bool = False,
-        cb_hook: Callable[[ViewerText], Any] = lambda element: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert isinstance(default_value, str)
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_text(self.name, self.default_value)
+        self.gui_handle = viser_server.add_gui_text(self.name, self.def_value)
         self.gui_handle.set_disabled(self.disabled)
 
 
-class ViewerNumber(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
+class ViewerNumber(ViewerParameter):
     """A number field in the viewer
 
     Args:
@@ -223,24 +213,22 @@ class ViewerNumber(ViewerParameter[IntOrFloat], Generic[IntOrFloat]):
         cb_hook: Callback to call on update
     """
 
-    default_value: IntOrFloat
-
     def __init__(
         self,
         name: str,
         default_value: IntOrFloat,
         disabled: bool = False,
-        cb_hook: Callable[[ViewerNumber], Any] = lambda element: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert isinstance(default_value, (float, int))
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_number(self.name, self.default_value)
+        self.gui_handle = viser_server.add_gui_number(self.name, self.def_value)
 
 
-class ViewerCheckbox(ViewerParameter[bool]):
+class ViewerCheckbox(ViewerParameter):
     """A checkbox in the viewer
 
     Args:
@@ -255,18 +243,18 @@ class ViewerCheckbox(ViewerParameter[bool]):
         name: str,
         default_value: bool,
         disabled: bool = False,
-        cb_hook: Callable[[ViewerCheckbox], Any] = lambda element: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert isinstance(default_value, bool)
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.default_value)
+        self.gui_handle = viser_server.add_gui_checkbox(self.name, self.def_value)
         self.gui_handle.set_disabled(self.disabled)
 
 
-class ViewerDropdown(ViewerParameter[str]):
+class ViewerDropdown(ViewerParameter):
     """A dropdown in the viewer
 
     Args:
@@ -277,15 +265,13 @@ class ViewerDropdown(ViewerParameter[str]):
         cb_hook: Callback to call on update
     """
 
-    gui_handle: Optional[GuiSelectHandle[str]]
-
     def __init__(
         self,
         name: str,
         default_value: str,
         options: List[str],
         disabled: bool = False,
-        cb_hook: Callable[[ViewerDropdown], Any] = lambda element: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert default_value in options
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
@@ -293,22 +279,19 @@ class ViewerDropdown(ViewerParameter[str]):
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
         assert self.gui_handle is None, "gui_handle should be initialized once"
-        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.default_value)
+        self.gui_handle = viser_server.add_gui_select(self.name, self.options, self.def_value)
         self.gui_handle.set_disabled(self.disabled)
 
     def set_options(self, new_options: List[str]) -> None:
         """
         Sets the options of the dropdown,
-
-        Args:
-            new_options: The new options. If the current option isn't in the new options, the first option is selected.
+        new_options: The new options. if the current option isn't in the new options, the first option is selected
         """
         self.options = new_options
-        if self.gui_handle is not None:
-            self.gui_handle.set_options(new_options)
+        self.gui_handle.set_options(new_options)
 
 
-class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
+class ViewerRGB(ViewerParameter):
     """
     An RGB color picker for the viewer
     """
@@ -318,17 +301,17 @@ class ViewerRGB(ViewerParameter[Tuple[int, int, int]]):
         name,
         default_value: Tuple[int, int, int],
         disabled=False,
-        cb_hook: Callable[[ViewerRGB], Any] = lambda element: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert len(default_value) == 3
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_rgb(self.name, self.default_value)
+        self.gui_handle = viser_server.add_gui_rgb(self.name, self.def_value)
         self.gui_handle.set_disabled(self.disabled)
 
 
-class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
+class ViewerVec3(ViewerParameter):
     """
     3 number boxes in a row to input a vector
     """
@@ -339,12 +322,12 @@ class ViewerVec3(ViewerParameter[Tuple[float, float, float]]):
         default_value: Tuple[float, float, float],
         step=0.1,
         disabled=False,
-        cb_hook: Callable[[ViewerVec3], Any] = lambda element: None,
+        cb_hook: Callable = lambda element: None,
     ):
         assert len(default_value) == 3
         super().__init__(name, default_value, disabled=disabled, cb_hook=cb_hook)
         self.step = step
 
     def _create_gui_handle(self, viser_server: ViserServer) -> None:
-        self.gui_handle = viser_server.add_gui_vector3(self.name, self.default_value, self.step)
+        self.gui_handle = viser_server.add_gui_vector3(self.name, self.def_value, self.step)
         self.gui_handle.set_disabled(self.disabled)

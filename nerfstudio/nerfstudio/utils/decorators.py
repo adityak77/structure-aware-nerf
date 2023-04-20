@@ -42,7 +42,7 @@ def check_profiler_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.profiler != "none":
+        if self.config.enable_profiler:
             ret = func(self, *args, **kwargs)
         return ret
 

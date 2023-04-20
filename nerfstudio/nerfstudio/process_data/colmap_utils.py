@@ -19,6 +19,7 @@ Tools supporting the execution of COLMAP and preparation of COLMAP-based dataset
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional
+import os
 
 import appdirs
 import cv2

@@ -300,9 +300,10 @@ def copy_images(
     Returns:
         The mapping from the original filenames to the new ones.
     """
+    # import pdb;pdb.set_trace()
     with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
         image_paths = list_images(data)
-
+        # import pdb;pdb.set_trace()
         if len(image_paths) == 0:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
             sys.exit(1)
