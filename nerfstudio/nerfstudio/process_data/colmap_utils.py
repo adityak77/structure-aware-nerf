@@ -16,6 +16,7 @@
 Tools supporting the execution of COLMAP and preparation of COLMAP-based datasets for nerstudio training.
 """
 
+import os
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional

@@ -15,7 +15,7 @@ dependencies:
   - charset-normalizer=3.1.0=pyhd8ed1ab_0
   - colorama=0.4.6=pyhd8ed1ab_0
   - cryptography=40.0.2=py38h3d167d9_0
-  - cudatoolkit=10.1.243=h8cb64d8_11
+    # - cudatoolkit=10.1.243=h8cb64d8_11
   - cudnn=8.0.5.39=hc0a50b0_1
   - expat=2.5.0=hcb278e6_1
   - ffmpeg=5.1.2=gpl_h8dda1f0_106
@@ -160,7 +160,7 @@ dependencies:
       - fonttools==4.39.3
       - fqdn==1.5.1
       - frozendict==2.3.7
-      - functorch==0.2.1
+        # - functorch==0.2.1
       - gdown==4.7.1
       - gitdb==4.0.10
       - gitpython==3.1.31
@@ -242,7 +242,7 @@ dependencies:
       - onnx==1.13.1
       - onnxruntime==1.14.1
       - open3d==0.17.0
-      - opencv-python-headless==4.5.3.56
+      - opencv-python
       - packaging==23.0
       - pandas==2.0.0
       - pandocfilters==1.5.0
@@ -308,13 +308,13 @@ dependencies:
       - threadpoolctl==3.1.0
       - tifffile==2023.4.12
       - tinycss2==1.2.1
-      - tinycudann==1.7
+        # - tinycudann==1.7
       - tomli==2.0.1
-      - torch==1.12.1+cu113
-      - torch-fidelity==0.3.0
-      - torchmetrics==0.11.4
-      - torchtyping==0.1.4
-      - torchvision==0.13.1+cu113
+        # - torch==1.12.1+cu113
+        # - torch-fidelity==0.3.0
+        # - torchmetrics==0.11.4
+        # - torchtyping==0.1.4
+        # - torchvision==0.13.1+cu113
       - tornado==6.2
       - traitlets==5.9.0
       - trimesh==3.21.5
