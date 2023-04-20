@@ -122,8 +122,7 @@ class ProcessImages:
         image_rename_map: Optional[Dict[str, str]] = None
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
-        # mask_dir = self.data / ".." / "masks"
-        mask_dir = None
+        mask_dir = self.data / ".." / "masks"
         obj_pose_dir = self.data / ".." / "poses"
         image_dir.mkdir(parents=True, exist_ok=True)
 

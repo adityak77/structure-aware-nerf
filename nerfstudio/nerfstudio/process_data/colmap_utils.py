@@ -445,7 +445,7 @@ def colmap_to_json(
             "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
             "colmap_im_id": im_id,
-            # "mask_path":None, 
+            "mask_path": None, 
             "pose_path":  f"{obj_6dof_path}/{pose_filenames[im_id]}"
         }
         if camera_mask_path is not None:
