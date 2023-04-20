@@ -44,6 +44,7 @@ class InputDataset(Dataset):
         super().__init__()
         self._dataparser_outputs = dataparser_outputs
         self.has_masks = dataparser_outputs.mask_filenames is not None
+        self.has_poses = dataparser_outputs.pose_filenames is not None
         self.scale_factor = scale_factor
         self.scene_box = deepcopy(dataparser_outputs.scene_box)
         self.metadata = deepcopy(dataparser_outputs.metadata)
