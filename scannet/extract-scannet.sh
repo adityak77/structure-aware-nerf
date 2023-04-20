@@ -13,6 +13,6 @@ for dir in $scans_folder/*; do
 
     # extract data from .sens files
     for file in $dir/*.sens; do
-        python ScanNet/SensReader/python/reader.py --filename $file --output_path $dir --export_color_images --export_pose --export_intrinsics --frame_skip 10
+        python ScanNet/SensReader/python/reader.py --filename $file --output_path $dir --export_color_images --export_depth_images --export_pose --export_intrinsics --frame_skip 10
     done
 done
