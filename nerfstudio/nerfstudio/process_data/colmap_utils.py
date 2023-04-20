@@ -389,6 +389,7 @@ def colmap_to_json(
     recon_dir: Path,
     output_dir: Path,
     camera_mask_path: Optional[Path] = None,
+    obj_6dof_path: Optional[Path] = None,
     image_id_to_depth_path: Optional[Dict[int, Path]] = None,
     image_rename_map: Optional[Dict[str, str]] = None,
 ) -> int:
@@ -412,6 +413,7 @@ def colmap_to_json(
     # im_id_to_image = recon.images
     cam_id_to_camera = read_cameras_binary(recon_dir / "cameras.bin")
     im_id_to_image = read_images_binary(recon_dir / "images.bin")
+    pose_filenames = os.listdir(obj_6dof_path)
 
     frames = []
     for im_id, im_data in im_id_to_image.items():
@@ -437,11 +439,13 @@ def colmap_to_json(
         if image_rename_map is not None:
             name = image_rename_map[name]
         name = Path(f"./images/{name}")
-
+        
         frame = {
             "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
             "colmap_im_id": im_id,
+            # "mask_path":None, 
+            "pose_path":  f"{obj_6dof_path}/{pose_filenames[im_id]}"
         }
         if camera_mask_path is not None:
             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
@@ -459,7 +463,6 @@ def colmap_to_json(
     applied_transform = applied_transform[np.array([1, 0, 2]), :]
     applied_transform[2, :] *= -1
     out["applied_transform"] = applied_transform.tolist()
-
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
 

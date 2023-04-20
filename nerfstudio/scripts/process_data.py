@@ -122,6 +122,9 @@ class ProcessImages:
         image_rename_map: Optional[Dict[str, str]] = None
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
+        # mask_dir = self.data / ".." / "masks"
+        mask_dir = None
+        obj_pose_dir = self.data / ".." / "poses"
         image_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate planar projections if equirectangular
@@ -157,6 +160,7 @@ class ProcessImages:
 
         # Run COLMAP
         colmap_dir = self.output_dir / "colmap"
+        # import pdb;pdb.set_trace()
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
             colmap_model_path = colmap_dir / "sparse" / "0"
@@ -189,9 +193,20 @@ class ProcessImages:
         # Save transforms.json
         if (colmap_model_path / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+                # specify the following if semantic masks and 6DOF pose are needed
+                camera_mask_path = None 
+                obj_6dof_path = None 
+                if (mask_dir):
+                    camera_mask_path = mask_dir
+                if ( obj_pose_dir):
+                    obj_6dof_path = obj_pose_dir
+                print("here:")
+                print(obj_6dof_path)
                 num_matched_frames = colmap_utils.colmap_to_json(
                     recon_dir=colmap_model_path,
                     output_dir=self.output_dir,
+                    camera_mask_path=camera_mask_path,
+                    obj_6dof_path = obj_6dof_path,
                     image_id_to_depth_path=image_id_to_depth_path,
                     image_rename_map=image_rename_map,
                 )

@@ -477,8 +477,10 @@ class Cameras(TensorDataclass):
 
                 t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
 
-                t_min = t_min.reshape([shape[0], shape[1], 1])
-                t_max = t_max.reshape([shape[0], shape[1], 1])
+                # t_min = t_min.reshape([shape[0], shape[1], 1])
+                # t_max = t_max.reshape([shape[0], shape[1], 1])
+                t_min = t_min.reshape((t_min.shape[0],1))
+                t_max = t_max.reshape((t_max.shape[0],1))
 
                 raybundle.nears = t_min
                 raybundle.fars = t_max

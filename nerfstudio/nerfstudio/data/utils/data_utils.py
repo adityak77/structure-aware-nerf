@@ -36,6 +36,18 @@ def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -
         raise ValueError("The mask image should have 1 channel")
     return mask_tensor
 
+def get_obj_poseBox_tensor_from_path(filepath: Path):
+    with open(filepath,'r') as f:
+        lines = f.readlines()
+    line = lines[0].split(' ')
+    dim = np.array([float(line[8]),float(line[9]),float(line[10])])
+    assert(dim.min()>=0)
+    location = np.array([float(line[11]),float(line[12]),float(line[13])])
+    box = torch.tensor([[location[0]-dim[0],location[1]-dim[1],location[2]-dim[2]],
+                   [location[0]+dim[0],location[1]+dim[1],location[2]+dim[2]]])
+    
+    return box
+    
 
 def get_semantics_and_mask_tensors_from_path(
     filepath: Path, mask_indices: Union[List, torch.Tensor], scale_factor: float = 1.0

@@ -61,6 +61,8 @@ class DataparserOutputs:
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     mask_filenames: Optional[List[Path]] = None
     """Filenames for any masks that are required"""
+    pose_filenames: Optional[List[Path]] = None
+    """Filenames for any 6dof pose bounding boxes that are required"""
     metadata: Dict[str, Any] = to_immutable_dict({})
     """Dictionary of any metadata that be required for the given experiment.
     Will be processed by the InputDataset to create any additional tensors that may be required.

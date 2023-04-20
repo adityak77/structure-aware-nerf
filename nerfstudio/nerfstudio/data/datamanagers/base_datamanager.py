@@ -68,6 +68,7 @@ from nerfstudio.data.utils.dataloaders import (
     RandIndicesEvalDataloader,
 )
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
@@ -512,7 +513,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             device=self.device,
             num_workers=self.world_size * 4,
         )
-
+    
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
@@ -520,7 +521,22 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         assert self.train_pixel_sampler is not None
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
-        ray_bundle = self.train_ray_generator(ray_indices)
+        
+        # image_batch['pose'] = (B,2,3)
+        # use global?
+        # transform box in camera frame to global:
+        assert(self.train_dataset.cameras.shape[0]==image_batch['pose'].shape[0])
+        image_batch['pose'] = image_batch['pose'].type(torch.float32)
+        for i in range(self.train_dataset.cameras.shape[0]):
+            cam2World = self.train_dataset.cameras[i].camera_to_worlds.to('cuda')
+            coord = image_batch['pose'][i,:,:]
+            image_batch['pose'][i,:,:] = (cam2World[:,:3]@coord.T+cam2World[:,3].reshape((3,1))).T
+        pos_min = torch.min(image_batch['pose'][:,0,:],0).values
+        pos_max = torch.max(image_batch['pose'][:,1,:],0).values
+        box = torch.vstack((pos_min,pos_max))
+        aabb_box = SceneBox(box)
+        # aabb_box = None
+        ray_bundle = self.train_ray_generator(ray_indices,aabb_box)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:

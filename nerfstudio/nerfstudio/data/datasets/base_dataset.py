@@ -29,7 +29,7 @@ from torch.utils.data import Dataset
 from torchtyping import TensorType
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
+from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path, get_obj_poseBox_tensor_from_path
 
 
 class InputDataset(Dataset):
@@ -102,10 +102,13 @@ class InputDataset(Dataset):
             assert (
                 data["mask"].shape[:2] == data["image"].shape[:2]
             ), f"Mask and image have different shapes. Got {data['mask'].shape[:2]} and {data['image'].shape[:2]}"
+        if self.has_poses:
+            pose_filepath = self._dataparser_outputs.pose_filenames[image_idx]
+            data['pose'] = get_obj_poseBox_tensor_from_path(filepath=pose_filepath)
         metadata = self.get_metadata(data)
         data.update(metadata)
         return data
-
+    
     # pylint: disable=no-self-use
     def get_metadata(self, data: Dict) -> Dict:
         """Method that can be used to process any additional metadata that may be part of the model inputs.
