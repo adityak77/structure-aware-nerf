@@ -34,3 +34,4 @@ __pycache__
 wandb
 data
 checkpoints
+outputs/

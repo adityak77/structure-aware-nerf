@@ -521,20 +521,22 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         
-        # image_batch['pose'] = (B,2,3)
-        # use global?
-        # transform box in camera frame to global:
-        assert(self.train_dataset.cameras.shape[0]==image_batch['pose'].shape[0])
-        image_batch['pose'] = image_batch['pose'].type(torch.float32)
-        for i in range(self.train_dataset.cameras.shape[0]):
-            cam2World = self.train_dataset.cameras[i].camera_to_worlds.to('cuda')
-            coord = image_batch['pose'][i,:,:]
-            image_batch['pose'][i,:,:] = (cam2World[:,:3]@coord.T+cam2World[:,3].reshape((3,1))).T
-        pos_min = torch.min(image_batch['pose'][:,0,:],0).values
-        pos_max = torch.max(image_batch['pose'][:,1,:],0).values
-        box = torch.vstack((pos_min,pos_max))
-        aabb_box = SceneBox(box)
-        # aabb_box = None
+        if 'pose' in image_batch.keys():
+            # image_batch['pose'] = (B,2,3)
+            # use global?
+            # transform box in camera frame to global:
+            assert(self.train_dataset.cameras.shape[0]==image_batch['pose'].shape[0])
+            image_batch['pose'] = image_batch['pose'].type(torch.float32)
+            for i in range(self.train_dataset.cameras.shape[0]):
+                cam2World = self.train_dataset.cameras[i].camera_to_worlds.to('cuda')
+                coord = image_batch['pose'][i,:,:]
+                image_batch['pose'][i,:,:] = (cam2World[:,:3]@coord.T+cam2World[:,3].reshape((3,1))).T
+            pos_min = torch.min(image_batch['pose'][:,0,:],0).values
+            pos_max = torch.max(image_batch['pose'][:,1,:],0).values
+            box = torch.vstack((pos_min,pos_max))
+            aabb_box = SceneBox(box)
+        else:
+            aabb_box = None
         ray_bundle = self.train_ray_generator(ray_indices,aabb_box)
         return ray_bundle, batch
 

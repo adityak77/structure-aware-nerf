@@ -80,8 +80,8 @@ class SensorData:
   def export_depth_images(self, output_path, image_size=None):
     if not os.path.exists(output_path):
       os.makedirs(output_path)
-    print('exporting', len(self.frames), ' depth frames to', output_path)
-    for f in range(0, len(self.frames)):
+    print('exporting', len(self.frames) / self.frame_skip, ' depth frames to', output_path)
+    for f in range(0, len(self.frames), self.frame_skip):
       depth_data = self.frames[f].decompress_depth(self.depth_compression_type)
       depth = np.fromstring(depth_data, dtype=np.uint16).reshape(self.depth_height, self.depth_width)
       if image_size is not None:
