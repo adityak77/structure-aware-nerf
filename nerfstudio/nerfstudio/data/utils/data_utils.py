@@ -45,10 +45,11 @@ def get_scannet_image_mask_tensor_from_path(
     """
     Utility function to read a mask image from the given path and return a boolean tensor
     """
+    assert instance_id in all_instances or instance_id == 0 # instance mask or background mask
     mask = cv2.imread(filepath.as_posix(), cv2.IMREAD_GRAYSCALE)
     if instance_id != 0:
         binary_mask = (mask == instance_id).astype(np.uint8)
-    else: # retuan all values in mask that do not belong to any instance
+    else: # return all values in mask that do not belong to any instance
         binary_mask = np.isin(mask, all_instances, invert=True).astype(np.uint8)
     if scale_factor != 1.0:
         width, height = binary_mask.size
@@ -63,7 +64,7 @@ def get_obj_poseBox_tensor_from_path(filepath: Path):
     with open(filepath,'r') as f:
         lines = f.readlines()
     line = lines[0].split(' ')
-    dim = np.array([float(line[8]),float(line[9]),float(line[10])]) / 2
+    dim = np.array([float(line[8]),float(line[9]),float(line[10])])
     assert(dim.min()>=0)
     location = np.array([float(line[11]),float(line[12]),float(line[13])])
     box = torch.tensor([[location[0]-dim[0],location[1]-dim[1],location[2]-dim[2]],
@@ -77,7 +78,8 @@ def get_obj_poseBox_tensor_from_json(filepath: Path, frame_index: int, instance_
     
     with open(filepath,'r') as f:
         data = json.load(f)
-    
+
+    print(frame_index, instance_id)    
     object_pose = data[str(frame_index)][str(instance_id)]
     center = object_pose[:3]
     dim = [elem / 2 for elem in object_pose[3:6]]
