@@ -54,6 +54,7 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.data.dataparsers.scannet_dataparser import ScanNetDataParserConfig
+from nerfstudio.data.dataparsers.custom_scannet_dataparser import CustomScanNetDataParserConfig
 from nerfstudio.data.dataparsers.sdfstudio_dataparser import SDFStudioDataParserConfig
 from nerfstudio.data.dataparsers.sitcoms3d_dataparser import Sitcoms3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -115,6 +116,7 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
             "phototourism-data": PhototourismDataParserConfig(),
             "dycheck-data": DycheckDataParserConfig(),
             "scannet-data": ScanNetDataParserConfig(),
+            "custom-scannet-data": CustomScanNetDataParserConfig(),
             "sdfstudio-data": SDFStudioDataParserConfig(),
             "nerfosr-data": NeRFOSRDataParserConfig(),
             "sitcoms3d-data": Sitcoms3DDataParserConfig(),
@@ -526,15 +528,18 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             # use global?
             # transform box in camera frame to global:
             assert(self.train_dataset.cameras.shape[0]==image_batch['pose'].shape[0])
-            image_batch['pose'] = image_batch['pose'].type(torch.float32)
-            for i in range(self.train_dataset.cameras.shape[0]):
-                cam2World = self.train_dataset.cameras[i].camera_to_worlds.to('cuda')
-                coord = image_batch['pose'][i,:,:]
-                image_batch['pose'][i,:,:] = (cam2World[:,:3]@coord.T+cam2World[:,3].reshape((3,1))).T
-            pos_min = torch.min(image_batch['pose'][:,0,:],0).values
-            pos_max = torch.max(image_batch['pose'][:,1,:],0).values
-            box = torch.vstack((pos_min,pos_max))
-            aabb_box = SceneBox(box)
+            if image_batch['pose'].sum() == 0: # i.e. background is the class being trained on
+                aabb_box = None
+            else:
+                image_batch['pose'] = image_batch['pose'].type(torch.float32)
+                for i in range(self.train_dataset.cameras.shape[0]):
+                    cam2World = self.train_dataset.cameras[i].camera_to_worlds.to('cuda')
+                    coord = image_batch['pose'][i,:,:]
+                    image_batch['pose'][i,:,:] = (cam2World[:,:3]@coord.T+cam2World[:,3].reshape((3,1))).T
+                pos_min = torch.min(image_batch['pose'][:,0,:],0).values
+                pos_max = torch.max(image_batch['pose'][:,1,:],0).values
+                box = torch.vstack((pos_min,pos_max))
+                aabb_box = SceneBox(box)
         else:
             aabb_box = None
         ray_bundle = self.train_ray_generator(ray_indices,aabb_box)

@@ -31,7 +31,9 @@ from torchtyping import TensorType
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import (
     get_image_mask_tensor_from_path,
+    get_scannet_image_mask_tensor_from_path,
     get_obj_poseBox_tensor_from_path,
+    get_obj_poseBox_tensor_from_json,
 )
 
 
@@ -47,7 +49,7 @@ class InputDataset(Dataset):
         super().__init__()
         self._dataparser_outputs = dataparser_outputs
         self.has_masks = dataparser_outputs.mask_filenames is not None
-        self.has_poses = dataparser_outputs.pose_filenames is not None
+        self.has_poses = dataparser_outputs.pose_filenames is not None or "scannet_object_pose_json" in dataparser_outputs.metadata
         self.scale_factor = scale_factor
         self.scene_box = deepcopy(dataparser_outputs.scene_box)
         self.metadata = deepcopy(dataparser_outputs.metadata)
@@ -102,16 +104,32 @@ class InputDataset(Dataset):
         data["image"] = image
         if self.has_masks:
             mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
-            data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath, scale_factor=self.scale_factor)
+            if 'scannet_instance_id' in self._dataparser_outputs.metadata:
+                data['mask'] = get_scannet_image_mask_tensor_from_path(
+                    filepath=mask_filepath, 
+                    instance_id=self._dataparser_outputs.metadata['scannet_instance_id'],
+                    all_instances=self._dataparser_outputs.metadata['scannet_all_instances'],
+                    scale_factor=self.scale_factor
+                )
+            else:
+                data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath, scale_factor=self.scale_factor)
             assert (
                 data["mask"].shape[:2] == data["image"].shape[:2]
             ), f"Mask and image have different shapes. Got {data['mask'].shape[:2]} and {data['image'].shape[:2]}"
         if self.has_poses:
-            pose_filepath = self._dataparser_outputs.pose_filenames[image_idx]
-            # test = get_obj_poseBox_tensor_from_path(filepath=pose_filepath)
-            # data['pose'] = 1
-            data["pose"] = get_obj_poseBox_tensor_from_path(filepath=pose_filepath)
-            # print(data['pose'])
+            if "scannet_object_pose_json" in self._dataparser_outputs.metadata:
+                assert 'scannet_instance_id' in self._dataparser_outputs.metadata, "scannet_instance_id must be provided if scannet_object_pose_json is provided"
+                pose_filepath = self._dataparser_outputs.metadata["scannet_object_pose_json"]
+                image_filename = self._dataparser_outputs.image_filenames[image_idx]
+                frame_idx = int(image_filename.stem.split("_")[-1])
+                data["pose"] = get_obj_poseBox_tensor_from_json(
+                    filepath=pose_filepath, 
+                    frame_index=frame_idx, 
+                    instance_id=self._dataparser_outputs.metadata['scannet_instance_id']
+                )
+            else:
+                pose_filepath = self._dataparser_outputs.pose_filenames[image_idx]
+                data["pose"] = get_obj_poseBox_tensor_from_path(filepath=pose_filepath)
         metadata = self.get_metadata(data)
         data.update(metadata)
         return data

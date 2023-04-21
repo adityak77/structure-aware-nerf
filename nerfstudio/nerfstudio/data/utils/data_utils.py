@@ -15,7 +15,7 @@
 """Utility functions to allow easy re-use of common operations across dataloaders"""
 from pathlib import Path
 from typing import List, Tuple, Union
-
+import json
 import cv2
 import numpy as np
 import torch
@@ -36,6 +36,29 @@ def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -
         raise ValueError("The mask image should have 1 channel")
     return mask_tensor
 
+def get_scannet_image_mask_tensor_from_path(
+        filepath: Path, 
+        instance_id: int, 
+        all_instances: List[int], 
+        scale_factor: float = 1.0
+    ) -> torch.Tensor:
+    """
+    Utility function to read a mask image from the given path and return a boolean tensor
+    """
+    mask = cv2.imread(filepath.as_posix(), cv2.IMREAD_GRAYSCALE)
+    if instance_id != 0:
+        binary_mask = (mask == instance_id).astype(np.uint8)
+    else: # retuan all values in mask that do not belong to any instance
+        binary_mask = np.isin(mask, all_instances, invert=True).astype(np.uint8)
+    if scale_factor != 1.0:
+        width, height = binary_mask.size
+        newsize = (int(width * scale_factor), int(height * scale_factor))
+        binary_mask = cv2.resize(binary_mask, newsize, interpolation=cv2.INTER_NEAREST)
+    mask_tensor = torch.from_numpy(binary_mask).unsqueeze(-1).bool()
+    if len(mask_tensor.shape) != 3:
+        raise ValueError("The mask image should have 1 channel")
+    return mask_tensor
+
 def get_obj_poseBox_tensor_from_path(filepath: Path):
     with open(filepath,'r') as f:
         lines = f.readlines()
@@ -47,7 +70,23 @@ def get_obj_poseBox_tensor_from_path(filepath: Path):
                    [location[0]+dim[0],location[1]+dim[1],location[2]+dim[2]]])
     
     return box
+
+def get_obj_poseBox_tensor_from_json(filepath: Path, frame_index: int, instance_id: int):
+    if instance_id == 0:
+        return torch.zeros((2, 3)) # dummy pose, include whole scene
     
+    with open(filepath,'r') as f:
+        data = json.load(f)
+    
+    object_pose = data[str(frame_index)][str(instance_id)]
+    center = object_pose[:3]
+    dim = [elem / 2 for elem in object_pose[3:6]]
+
+    box = torch.tensor([[center[0]-dim[0],center[1]-dim[1],center[2]-dim[2]],
+                   [center[0]+dim[0],center[1]+dim[1],center[2]+dim[2]]])
+    
+    return box
+
 
 def get_semantics_and_mask_tensors_from_path(
     filepath: Path, mask_indices: Union[List, torch.Tensor], scale_factor: float = 1.0
