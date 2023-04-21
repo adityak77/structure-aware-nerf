@@ -82,7 +82,7 @@ def get_obj_poseBox_tensor_from_json(filepath: Path, frame_index: int, instance_
     print(frame_index, instance_id)    
     object_pose = data[str(frame_index)][str(instance_id)]
     center = object_pose[:3]
-    dim = [elem / 2 for elem in object_pose[3:6]]
+    dim = [elem for elem in object_pose[3:6]]
 
     box = torch.tensor([[center[0]-dim[0],center[1]-dim[1],center[2]-dim[2]],
                    [center[0]+dim[0],center[1]+dim[1],center[2]+dim[2]]])
