@@ -63,7 +63,7 @@ def get_obj_poseBox_tensor_from_path(filepath: Path):
     with open(filepath,'r') as f:
         lines = f.readlines()
     line = lines[0].split(' ')
-    dim = np.array([float(line[8]),float(line[9]),float(line[10])])
+    dim = np.array([float(line[8]),float(line[9]),float(line[10])]) / 2
     assert(dim.min()>=0)
     location = np.array([float(line[11]),float(line[12]),float(line[13])])
     box = torch.tensor([[location[0]-dim[0],location[1]-dim[1],location[2]-dim[2]],

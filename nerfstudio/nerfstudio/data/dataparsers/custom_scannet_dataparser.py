@@ -69,6 +69,7 @@ class CustomScanNetDataParserConfig(DataParserConfig):
     """The fraction of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    fraction_nonmask_pixel_sample: float = 0.1
 
 
 @dataclass
@@ -196,6 +197,7 @@ class CustomScanNet(DataParser):
                 "scannet_instance_id": self.config.object_instance,
                 "scannet_all_instances": processed_info['objects_with_poses'],
                 "scannet_object_pose_json": object_poses_path,
+                "fraction_nonmask_pixels": self.config.fraction_nonmask_pixel_sample,
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
             },

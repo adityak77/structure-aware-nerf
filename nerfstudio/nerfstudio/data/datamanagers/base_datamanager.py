@@ -456,7 +456,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         # Otherwise, use the default pixel sampler
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-        return PixelSampler(*args, **kwargs)
+        
+        fraction_nonmask_pixels = dataset.metadata['fraction_nonmask_pixels'] if 'fraction_nonmask_pixels' in dataset.metadata else 0.0
+        return PixelSampler(fraction_nonmask_pixels=fraction_nonmask_pixels, *args, **kwargs)
 
     def setup_train(self):
         """Sets up the data loaders for training"""
@@ -528,7 +530,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             # use global?
             # transform box in camera frame to global:
             assert(self.train_dataset.cameras.shape[0]==image_batch['pose'].shape[0])
-            if image_batch['pose'].sum() == 0: # i.e. background is the class being trained on
+            if image_batch['pose'].sum() == 0: # i.e. background is the class being trained on; bbox is full scene
                 aabb_box = None
             else:
                 image_batch['pose'] = image_batch['pose'].type(torch.float32)

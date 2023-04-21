@@ -51,6 +51,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         image_height: int,
         image_width: int,
         mask: Optional[TensorType] = None,
+        fraction_nonmask_pixels: float = 0.0,
         device: Union[torch.device, str] = "cpu",
     ) -> TensorType["batch_size", 3]:
         """
@@ -62,9 +63,15 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             mask: mask of possible pixels in an image to sample from.
         """
         if isinstance(mask, torch.Tensor):
+            zero_indices = torch.nonzero(mask[..., 0] == 0, as_tuple=False)
             nonzero_indices = torch.nonzero(mask[..., 0], as_tuple=False)
-            chosen_indices = random.sample(range(len(nonzero_indices)), k=batch_size)
-            indices = nonzero_indices[chosen_indices]
+            
+            num_zero_chosen = int(batch_size * fraction_nonmask_pixels)
+            num_nonzero_chosen = batch_size - num_zero_chosen
+
+            zero_chosen_indices = random.sample(range(len(zero_indices)), k=num_zero_chosen)
+            nonzero_chosen_indices = random.sample(range(len(nonzero_indices)), k=num_nonzero_chosen)
+            indices = torch.cat((zero_indices[zero_chosen_indices], nonzero_indices[nonzero_chosen_indices]), dim=0)
         else:
             indices = torch.floor(
                 torch.rand((batch_size, 3), device=device)
