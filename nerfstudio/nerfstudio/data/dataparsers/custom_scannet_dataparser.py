@@ -15,6 +15,7 @@
 """Data parser for ScanNet dataset"""
 import os
 import pickle
+import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -70,6 +71,7 @@ class CustomScanNetDataParserConfig(DataParserConfig):
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
     fraction_nonmask_pixel_sample: float = 0.1
+    """Fraction of non-masked pixels to sample from the image."""
 
 
 @dataclass
@@ -83,12 +85,14 @@ class CustomScanNet(DataParser):
         depth_dir = self.config.data / "depth"
         pose_dir = self.config.data / "pose"
 
-        instance_mask_dir = self.config.data / "instance_filt"
+        instance_mask_dir = self.config.data / "instance-filt"
         base_name = os.path.basename(self.config.data)
         with open(self.config.data / f'{base_name}.pkl', 'rb') as f:
             processed_info = pickle.load(f)
         # aggregation_json = self.config.data / f"{base_name}.aggregation.json"
         object_poses_path = self.config.data / "object_poses.json"
+        with open(object_poses_path, "r") as f:
+            object_poses = json.load(f)
 
         img_dir_sorted = list(sorted(image_dir.iterdir(), key=lambda x: int(x.name.split(".")[0])))
         depth_dir_sorted = list(sorted(depth_dir.iterdir(), key=lambda x: int(x.name.split(".")[0])))
@@ -104,6 +108,10 @@ class CustomScanNet(DataParser):
 
         K = np.loadtxt(self.config.data / "intrinsic" / "intrinsic_color.txt")
         for img, depth, pose, mask in zip(img_dir_sorted, depth_dir_sorted, pose_dir_sorted, instance_mask_dir_sorted):
+            frame_idx = int(img.stem.split("_")[-1])
+            if str(self.config.object_instance) not in object_poses[str(frame_idx)]:
+                continue
+
             # Load the mask
             mask_matrix = cv2.imread(mask.as_posix(), cv2.IMREAD_GRAYSCALE)
             binary_mask = mask_matrix == self.config.object_instance
