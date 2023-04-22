@@ -97,9 +97,6 @@ class CustomScanNet(DataParser):
         img_dir_sorted = list(sorted(image_dir.iterdir(), key=lambda x: int(x.name.split(".")[0])))
         depth_dir_sorted = list(sorted(depth_dir.iterdir(), key=lambda x: int(x.name.split(".")[0])))
         pose_dir_sorted = list(sorted(pose_dir.iterdir(), key=lambda x: int(x.name.split(".")[0])))
-        instance_mask_dir_sorted = list(
-            sorted(instance_mask_dir.iterdir(), key=lambda x: int(x.name.split(".")[0]))
-        )
 
         first_img = cv2.imread(img_dir_sorted[0].as_posix())
         h, w, _ = first_img.shape
@@ -107,12 +104,13 @@ class CustomScanNet(DataParser):
         image_filenames, depth_filenames, mask_filenames, intrinsics, poses = [], [], [], [], []
 
         K = np.loadtxt(self.config.data / "intrinsic" / "intrinsic_color.txt")
-        for img, depth, pose, mask in zip(img_dir_sorted, depth_dir_sorted, pose_dir_sorted, instance_mask_dir_sorted):
+        for img, depth, pose in zip(img_dir_sorted, depth_dir_sorted, pose_dir_sorted):
             frame_idx = int(img.stem.split("_")[-1])
             if str(self.config.object_instance) not in object_poses[str(frame_idx)]:
                 continue
 
             # Load the mask
+            mask = instance_mask_dir / f"{frame_idx}.png"
             mask_matrix = cv2.imread(mask.as_posix(), cv2.IMREAD_GRAYSCALE)
             binary_mask = mask_matrix == self.config.object_instance
             if not binary_mask.any():
