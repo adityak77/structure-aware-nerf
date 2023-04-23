@@ -19,7 +19,7 @@ import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Type, Dict
 
 import cv2
 import numpy as np
@@ -92,7 +92,7 @@ class CustomScanNet(DataParser):
         # aggregation_json = self.config.data / f"{base_name}.aggregation.json"
         object_poses_path = self.config.data / "object_poses.json"
         with open(object_poses_path, "r") as f:
-            object_poses = json.load(f)
+            object_pose_json = json.load(f)
 
         img_dir_sorted = list(sorted(image_dir.iterdir(), key=lambda x: int(x.name.split(".")[0])))
         depth_dir_sorted = list(sorted(depth_dir.iterdir(), key=lambda x: int(x.name.split(".")[0])))
@@ -102,11 +102,12 @@ class CustomScanNet(DataParser):
         h, w, _ = first_img.shape
 
         image_filenames, depth_filenames, mask_filenames, intrinsics, poses = [], [], [], [], []
+        object_pose_camera_frame = []
 
         K = np.loadtxt(self.config.data / "intrinsic" / "intrinsic_color.txt")
         for img, depth, pose in zip(img_dir_sorted, depth_dir_sorted, pose_dir_sorted):
             frame_idx = int(img.stem.split("_")[-1])
-            if str(self.config.object_instance) not in object_poses[str(frame_idx)]:
+            if str(self.config.object_instance) not in object_pose_json[str(frame_idx)]:
                 continue
 
             # Load the mask
@@ -130,6 +131,7 @@ class CustomScanNet(DataParser):
             image_filenames.append(img)
             mask_filenames.append(mask)
             depth_filenames.append(depth)
+            object_pose_camera_frame.append(self._get_obj_pose(object_pose_json, frame_idx, self.config.object_instance))
 
         # filter image_filenames and poses based on train/eval split percentage
         num_images = len(image_filenames)
@@ -171,6 +173,7 @@ class CustomScanNet(DataParser):
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
         intrinsics = intrinsics[indices.tolist()]
         poses = poses[indices.tolist()]
+        object_pose_camera_frame = torch.tensor(object_pose_camera_frame)[indices.tolist()].to(torch.float32)
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
@@ -192,6 +195,16 @@ class CustomScanNet(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        if self.config.object_instance == 0:
+            object_poses = None
+        else:
+            object_pose_camera_frame_tranpose = torch.transpose(object_pose_camera_frame, 1, 2)
+            object_pose_world_frame = torch.bmm(poses[:, :3, :3], object_pose_camera_frame_tranpose) + poses[:, :3, 3].unsqueeze(2) # (num_images, 3, 2)
+            object_poses = torch.stack(
+                (torch.min(object_pose_world_frame[:, :, 0], axis=0).values, 
+                 torch.max(object_pose_world_frame[:, :, 1], axis=0).values)
+            ) # (2, 3)
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
@@ -202,10 +215,27 @@ class CustomScanNet(DataParser):
             metadata={
                 "scannet_instance_id": self.config.object_instance,
                 "scannet_all_instances": processed_info['objects_with_poses'],
-                "scannet_object_pose_json": object_poses_path,
+                "scannet_object_pose": object_poses,
                 "fraction_nonmask_pixels": self.config.fraction_nonmask_pixel_sample,
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
             },
         )
         return dataparser_outputs
+    
+    def _get_obj_pose(self, data: Dict, frame_index: int, instance_id: int):
+        if instance_id == 0:
+            return np.zeros((2, 3)) # dummy pose, include whole scene
+        
+        object_pose = data[str(frame_index)][str(instance_id)]
+        center = object_pose[:3]
+        dim = [elem for elem in object_pose[3:6]]
+
+        assert all(elem > 0 for elem in dim)
+
+        box = np.array([
+            [center[0]-dim[0],center[1]-dim[1],center[2]-dim[2]],
+            [center[0]+dim[0],center[1]+dim[1],center[2]+dim[2]]
+        ])
+        
+        return box
