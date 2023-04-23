@@ -35,3 +35,4 @@ wandb
 data
 checkpoints
 outputs/
+samples/
