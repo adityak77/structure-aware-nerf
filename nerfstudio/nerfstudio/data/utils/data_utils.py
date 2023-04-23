@@ -55,6 +55,10 @@ def get_scannet_image_mask_tensor_from_path(
         width, height = binary_mask.size
         newsize = (int(width * scale_factor), int(height * scale_factor))
         binary_mask = cv2.resize(binary_mask, newsize, interpolation=cv2.INTER_NEAREST)
+
+    structuring_element = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+    binary_mask = cv2.dilate(binary_mask, structuring_element, iterations=6)
+
     mask_tensor = torch.from_numpy(binary_mask).unsqueeze(-1).bool()
     if len(mask_tensor.shape) != 3:
         raise ValueError("The mask image should have 1 channel")
@@ -78,8 +82,7 @@ def get_obj_poseBox_tensor_from_json(filepath: Path, frame_index: int, instance_
     
     with open(filepath,'r') as f:
         data = json.load(f)
-
-    print(frame_index, instance_id)    
+ 
     object_pose = data[str(frame_index)][str(instance_id)]
     center = object_pose[:3]
     dim = [elem for elem in object_pose[3:6]]
