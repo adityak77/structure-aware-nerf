@@ -106,14 +106,14 @@ class CustomScanNet(DataParser):
         K = np.loadtxt(self.config.data / "intrinsic" / "intrinsic_color.txt")
         for img, depth, pose in zip(img_dir_sorted, depth_dir_sorted, pose_dir_sorted):
             frame_idx = int(img.stem.split("_")[-1])
-            if str(self.config.object_instance) not in object_poses[str(frame_idx)]:
+            if self.config.object_instance != 0 and str(self.config.object_instance) not in object_poses[str(frame_idx)]:
                 continue
 
             # Load the mask
             mask = instance_mask_dir / f"{frame_idx}.png"
             mask_matrix = cv2.imread(mask.as_posix(), cv2.IMREAD_GRAYSCALE)
             binary_mask = mask_matrix == self.config.object_instance
-            if not binary_mask.any():
+            if not binary_mask.any() and self.config.object_instance != 0:
                 continue
 
             pose = np.loadtxt(pose)
