@@ -85,8 +85,10 @@ def get_obj_poseBox_tensor_from_json(filepath: Path, frame_index: int, instance_
  
     object_pose = data[str(frame_index)][str(instance_id)]
     center = object_pose[:3]
-    dim = [elem for elem in object_pose[3:6]]
+    dim = object_pose[3:6]
+    rotation = np.array(object_pose[6:]).reshape((3,3))
 
+    center = rotation @ np.array(center).T
     box = torch.tensor([[center[0]-dim[0],center[1]-dim[1],center[2]-dim[2]],
                    [center[0]+dim[0],center[1]+dim[1],center[2]+dim[2]]])
     
