@@ -323,8 +323,8 @@ class NerfactoModel(Model):
              
                 self.nerfactos = []
                 # print(hasattr(self, 'nerfactos'))
-                weights = ['/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k/nerfacto/good_blue_car/nerfstudio_models/step-000002000.ckpt', 
-                        '/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k_background/nerfacto/blue_car_back/nerfstudio_models/step-000006000.ckpt']
+                weights = ['/home/akannan2/16825/structure-aware-nerf/outputs/port_two_boats/nerfacto/2023-05-02_221309/nerfstudio_models/step-000018000.ckpt', 
+                        '/home/akannan2/16825/structure-aware-nerf/outputs/port_two_boats_inverse/nerfacto/2023-05-03_000733/nerfstudio_models/step-000018000.ckpt']
                 for ii in range(2):
                     
                     nerf_model = NerfactoModel(self.config, self.scene_box, self.num_train_data).cuda()
