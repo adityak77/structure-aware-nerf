@@ -230,8 +230,12 @@ class RenderStateMachine(threading.Thread):
         self.viewer.control_panel.update_output_options(list(outputs.keys()))
 
         output_render = self.viewer.control_panel.output_render
+        # print(outputs[output_render].shape[-1], outputs[output_render].dtype)
+        # self.viewer.update_colormap_options(
+        #     dimensions=outputs[output_render].shape[-1], dtype=outputs[output_render].dtype
+        # )
         self.viewer.update_colormap_options(
-            dimensions=outputs[output_render].shape[-1], dtype=outputs[output_render].dtype
+            dimensions=3, dtype=torch.float32
         )
         selected_output = (viewer_utils.apply_colormap(self.viewer.control_panel, outputs) * 255).type(torch.uint8)
 

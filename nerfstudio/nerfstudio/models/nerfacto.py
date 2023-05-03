@@ -130,6 +130,7 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to disable scene contraction or not."""
 
 
+
 class NerfactoModel(Model):
     """Nerfacto model
 
@@ -224,7 +225,12 @@ class NerfactoModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
-
+        # ckpt = torch.load('/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k/nerfacto/good_blue_car/nerfstudio_models/step-000002000.ckpt')
+        # new_ckpt = {k[7:]:v for k, v in ckpt['pipeline'].items()}
+        # self.load_state_dict(new_ckpt, strict=False)
+        
+        self.loaded = False
+        
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
         param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
@@ -261,6 +267,33 @@ class NerfactoModel(Model):
                 )
             )
         return callbacks
+    
+    def get_outputs_single(self, ray_bundle: RayBundle, add=False):
+        
+        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        if add:
+            # addon = torch.ones(ray_samples.shape[0])
+            ray_samples.add = True
+            # ray_samples = torch.cat([ray_samples, addon[:, None]], dim=-1)
+        field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
+        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+        weights_list.append(weights)
+        ray_samples_list.append(ray_samples)
+
+        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
+        accumulation = self.renderer_accumulation(weights=weights)
+
+        outputs = {
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
+            'weights': weights,
+            'field_outputs': field_outputs,
+            # 'ray_samples': ray_samples
+        }
+        
+        return outputs
 
     def get_outputs(self, ray_bundle: RayBundle):
         # import pdb;pdb.set_trace()
@@ -278,7 +311,57 @@ class NerfactoModel(Model):
             "rgb": rgb,
             "accumulation": accumulation,
             "depth": depth,
+            'weights': weights,
+            'field_outputs': field_outputs,
+            # 'ray_samples': ray_samples
         }
+        # print(torch.mean(rgb), rgb.shape)
+        
+        if True:
+            # print(hasattr(self, 'nerfactos'))
+            if not hasattr(self, 'nerfactos'):
+             
+                self.nerfactos = []
+                # print(hasattr(self, 'nerfactos'))
+                weights = ['/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k/nerfacto/good_blue_car/nerfstudio_models/step-000002000.ckpt', 
+                        '/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k_background/nerfacto/blue_car_back/nerfstudio_models/step-000006000.ckpt']
+                for ii in range(2):
+                    
+                    nerf_model = NerfactoModel(self.config, self.scene_box, self.num_train_data).cuda()
+                    ckpt = torch.load(weights[ii])
+                    new_ckpt = {k[7:]:v for k, v in ckpt['pipeline'].items()}
+                    nerf_model.load_state_dict(new_ckpt, strict=False)
+                    
+                    self.nerfactos.append(nerf_model)
+
+            all_weights = []
+            all_rgb = []
+            all_depth = []
+            for idx, nerf_model in enumerate(self.nerfactos):
+                out = nerf_model.get_outputs_single(ray_bundle, idx==0)
+                all_weights.append(out['weights'])
+                all_rgb.append(out['field_outputs'][FieldHeadNames.RGB])
+                all_depth.append(out['depth'])
+                    
+            all_weights = torch.sum(torch.stack(all_weights), dim=0)
+            # all_rgb = torch.mean(torch.stack(all_rgb), dim=0)
+            all_rgb = 0.7 * all_rgb[0] + 0.7 * all_rgb[1]
+            all_depth = torch.min(torch.stack(all_depth), dim=0)
+            
+            out_rgb = self.renderer_rgb(rgb=all_rgb, weights=all_weights)
+            # depth = self.renderer_depth(weights=all_weights, ray_samples=ray_samples)
+            accumulation = self.renderer_accumulation(weights=all_weights)
+            
+            outputs = {
+                "rgb": out_rgb,
+                "accumulation": accumulation,
+                "depth": all_depth,
+                # 'weights': all_weights,
+                # 'field_outputs': field_outputs,
+            }
+            # print(out_rgb.mean(), out_rgb.shape, accumulation.mean())
+            
+            return outputs
 
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
@@ -301,8 +384,8 @@ class NerfactoModel(Model):
                 field_outputs[FieldHeadNames.PRED_NORMALS],
             )
 
-        for i in range(self.config.num_proposal_iterations):
-            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
+        # for i in range(self.config.num_proposal_iterations):
+        #     outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         return outputs
 
@@ -374,3 +457,72 @@ class NerfactoModel(Model):
             images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict
+
+
+class ANerfactoModel(NerfactoModel):
+    
+    # def __init__():
+        # self.nerfactos = []
+        # weights = ['/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k/nerfacto/good_blue_car/nerfstudio_models/step-000002000.ckpt', 
+        #            '/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k_background/nerfacto/blue_car_back/nerfstudio_models/step-000006000.ckpt']
+        # for ii in range(2):
+            
+        #     nerf_model = SNerfactoModel()
+        #     ckpt = torch.load(weights[ii])
+        #     new_ckpt = {k[7:]:v for k, v in ckpt['pipeline'].items()}
+        #     nerf_model.load_state_dict(new_ckpt, strict=False)
+            
+        #     self.nerfactos.append(nerf_model)
+        
+    def get_outputs(self, ray_bundle: RayBundle):
+        # import pdb;pdb.set_trace()
+        # ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        # field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
+        # weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+        # weights_list.append(weights)
+        # ray_samples_list.append(ray_samples)
+
+        # rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        # depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
+        # accumulation = self.renderer_accumulation(weights=weights)
+        if not hasattr(self,'nerfactos'):
+            self.populate_modules()
+            self.nerfactos = []
+            weights = ['/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k/nerfacto/good_blue_car/nerfstudio_models/step-000002000.ckpt', 
+                    '/ocean/projects/ele220002p/tongshen/code/structure-aware-nerf/outputs/parking_lot_4k_background/nerfacto/blue_car_back/nerfstudio_models/step-000006000.ckpt']
+            for ii in range(1):
+                
+                nerf_model = SNerfactoModel(self.config, self.scene_box, self.num_train_data).cuda()
+                ckpt = torch.load(weights[ii])
+                new_ckpt = {k[7:]:v for k, v in ckpt['pipeline'].items()}
+                nerf_model.load_state_dict(new_ckpt, strict=False)
+                
+                self.nerfactos.append(nerf_model)
+
+        # self.renderer_depth = self.nerfactos[0].renderer_depth
+        # self.renderer_accumulation = self.nerfactos[0].renderer_accumulation
+        all_weights = []
+        all_rgb = []
+        all_depth = []
+        for nerf_model in self.nerfactos:
+            out = nerf_model.get_outputs(ray_bundle)
+            all_weights.append(out['weights'])
+            all_rgb.append(out['field_outputs'][FieldHeadNames.RGB])
+            all_depth.append(out['depth'])
+                
+        all_weights = torch.sum(torch.stack(all_weights), dim=0)
+        all_rgb = torch.sum(torch.stack(all_rgb), dim=0)
+        all_depth = torch.min(torch.stack(all_depth), dim=0)
+        # depth = self.renderer_depth(weights=all_weights, ray_samples=ray_samples)
+        accumulation = self.renderer_accumulation(weights=all_weights)
+        
+        outputs = {
+            "rgb": all_rgb,
+            "accumulation": accumulation,
+            "depth": all_depth,
+            # 'weights': all_weights,
+            # 'field_outputs': field_outputs,
+        }
+        
+        return outputs
+        

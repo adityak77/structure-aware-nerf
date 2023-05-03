@@ -104,6 +104,7 @@ def eval_setup(
     pipeline.eval()
 
     # load checkpointed information
-    checkpoint_path, step = eval_load_checkpoint(config, pipeline)
-
+    # checkpoint_path, step = eval_load_checkpoint(config, pipeline)
+    checkpoint_path = ''
+    step = 20000
     return config, pipeline, checkpoint_path, step

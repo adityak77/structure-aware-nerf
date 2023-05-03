@@ -166,32 +166,5 @@ def apply_colormap(
     output_type = control_panel.output_render
 
     # default for rgb images
-    if colormap_type == ColormapTypes.DEFAULT and outputs[output_type].shape[-1] == 3:
-        return outputs[output_type]
-
-    # rendering depth outputs
-    if outputs[output_type].shape[-1] == 1 and outputs[output_type].dtype == torch.float:
-        output = outputs[output_type]
-        if control_panel.colormap_normalize:
-            output = output - torch.min(output)
-            output = output / (torch.max(output) + eps)
-        output = output * (control_panel.colormap_max - control_panel.colormap_min) + control_panel.colormap_min
-        output = torch.clip(output, 0, 1)
-        if control_panel.colormap_invert:
-            output = 1 - output
-        if colormap_type == ColormapTypes.DEFAULT:
-            return colormaps.apply_colormap(output, cmap=ColormapTypes.TURBO.value)
-        return colormaps.apply_colormap(output, cmap=colormap_type)
-
-    # rendering semantic outputs
-    if outputs[output_type].dtype == torch.int:
-        logits = outputs[output_type]
-        labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
-        assert colors is not None
-        return colors[labels]
-
-    # rendering boolean outputs
-    if outputs[output_type].dtype == torch.bool:
-        return colormaps.apply_boolean_colormap(outputs[output_type])
-
-    raise NotImplementedError
+    # if colormap_type == ColormapTypes.DEFAULT and outputs[output_type].shape[-1] == 3:
+    return outputs[output_type]
