@@ -343,14 +343,17 @@ class NerfactoModel(Model):
                 all_rgb.append(out['field_outputs'][FieldHeadNames.RGB])
                 all_depth.append(out['depth'])
                     
-            all_weights = torch.sum(torch.stack(all_weights), dim=0)
+            all_weights, max_indices = torch.max(torch.stack(all_weights), dim=0)
             # all_rgb = torch.mean(torch.stack(all_rgb), dim=0)
-            all_rgb = 0.7 * all_rgb[0] + 0.7 * all_rgb[1]
-            all_depth = torch.min(torch.stack(all_depth), dim=0)
+
+            max_indices = max_indices.expand(-1, -1, 3).unsqueeze(0) 
+            all_rgb = torch.stack(all_rgb).gather(dim=0, index=max_indices).squeeze(0)
+            # all_rgb = torch.stack(all_rgb)[max_indices] # 0.5 * all_rgb[0] + 0.5 * all_rgb[1]
+            all_depth, _ = torch.min(torch.stack(all_depth), dim=0)
             
             out_rgb = self.renderer_rgb(rgb=all_rgb, weights=all_weights)
             # depth = self.renderer_depth(weights=all_weights, ray_samples=ray_samples)
-            accumulation = self.renderer_accumulation(weights=all_weights)
+            accumulation = self.renderer_accumulation(weights=all_weights) / 2
             
             outputs = {
                 "rgb": out_rgb,
@@ -448,13 +451,13 @@ class NerfactoModel(Model):
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
-        for i in range(self.config.num_proposal_iterations):
-            key = f"prop_depth_{i}"
-            prop_depth_i = colormaps.apply_depth_colormap(
-                outputs[key],
-                accumulation=outputs["accumulation"],
-            )
-            images_dict[key] = prop_depth_i
+        # for i in range(self.config.num_proposal_iterations):
+        #     key = f"prop_depth_{i}"
+        #     prop_depth_i = colormaps.apply_depth_colormap(
+        #         outputs[key],
+        #         accumulation=outputs["accumulation"],
+        #     )
+        #     images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict
 

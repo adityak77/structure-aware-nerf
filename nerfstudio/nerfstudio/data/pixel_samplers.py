@@ -70,9 +70,12 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             num_zero_chosen = int(batch_size * fraction_nonmask_pixels)
             num_nonzero_chosen = batch_size - num_zero_chosen
 
-            zero_chosen_indices = random.sample(range(len(zero_indices)), k=num_zero_chosen)
-            nonzero_chosen_indices = random.sample(range(len(nonzero_indices)), k=num_nonzero_chosen)
-            indices = torch.cat((zero_indices[zero_chosen_indices], nonzero_indices[nonzero_chosen_indices]), dim=0)
+            if num_zero_chosen <= len(zero_indices) and num_nonzero_chosen <= len(nonzero_indices):
+                zero_chosen_indices = random.sample(range(len(zero_indices)), k=num_zero_chosen)
+                nonzero_chosen_indices = random.sample(range(len(nonzero_indices)), k=num_nonzero_chosen)
+                indices = torch.cat((zero_indices[zero_chosen_indices], nonzero_indices[nonzero_chosen_indices]), dim=0)
+            else:
+                indices = nonzero_indices[random.sample(range(len(nonzero_indices)), k=batch_size)]
         else:
             indices = torch.floor(
                 torch.rand((batch_size, 3), device=device)
