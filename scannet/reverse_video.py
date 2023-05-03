@@ -1,7 +1,7 @@
 import imageio
 
 def main(fpath, save_path):
-    video = imageio.mimread(fpath)
+    video = imageio.mimread(fpath, memtest=False)
     reversed_video = []
     for frame in video:
         reversed_video.append(frame[::-1, ::-1, :])

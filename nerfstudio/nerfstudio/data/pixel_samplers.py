@@ -51,7 +51,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         image_height: int,
         image_width: int,
         mask: Optional[TensorType] = None,
-        fraction_nonmask_pixels: float = 0.0,
+        fraction_nonmask_pixels: float = 0.8,
         device: Union[torch.device, str] = "cpu",
     ) -> TensorType["batch_size", 3]:
         """
@@ -63,8 +63,9 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             mask: mask of possible pixels in an image to sample from.
         """
         if isinstance(mask, torch.Tensor):
-            zero_indices = torch.nonzero(mask[..., 0] == 0, as_tuple=False)
-            nonzero_indices = torch.nonzero(mask[..., 0], as_tuple=False)
+            # print(mask.shape)
+            zero_indices = torch.argwhere(mask[..., 0] == 0)
+            nonzero_indices = torch.argwhere(mask[..., 0])
             
             num_zero_chosen = int(batch_size * fraction_nonmask_pixels)
             num_nonzero_chosen = batch_size - num_zero_chosen
@@ -102,10 +103,11 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             indices = self.sample_method(num_rays_per_batch, num_images, image_height, image_width, device=device)
 
         c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
+        c, y, x = c.cpu(), y.cpu(), x.cpu()
         collated_batch = {
             key: value[c, y, x]
             for key, value in batch.items()
-            if key != "image_idx" and key != "pose" and value is not None
+            if key != "image_idx" and value is not None
         }
 
         assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
